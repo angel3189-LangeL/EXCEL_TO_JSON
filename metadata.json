@@ -1,0 +1,5 @@
+{
+  "name": "Excel2JSON Pro Multi-Converter",
+  "description": "A high-performance batch processor for converting Excel files to JSON with real-time previews, smart data insights powered by Gemini, and bulk export capabilities.",
+  "requestFramePermissions": []
+}
