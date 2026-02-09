@@ -49,24 +49,22 @@ const ManualEditor: React.FC = () => {
 
   const updateHeader = (index: number, newName: string) => {
     const oldName = headers[index];
-    if (newName === oldName || !newName.trim()) return;
+    if (newName === oldName) return;
 
-    // Actualizar lista de encabezados
+    // Actualizar lista de encabezados (permitimos vacíos para que el usuario pueda borrar y escribir)
     const newHeaders = [...headers];
     newHeaders[index] = newName;
+    setHeaders(newHeaders);
 
-    // Mapear los datos de las filas a la nueva clave
-    const newRows = rows.map(row => {
+    // Mapear los datos de las filas a la nueva clave para mantener la sincronización
+    setRows(prevRows => prevRows.map(row => {
       const newRow: Row = {};
       headers.forEach((h, i) => {
         const key = i === index ? newName : h;
         newRow[key] = row[h] || '';
       });
       return newRow;
-    });
-
-    setHeaders(newHeaders);
-    setRows(newRows);
+    }));
   };
 
   const updateCell = (rowIndex: number, header: string, value: string) => {
@@ -137,7 +135,7 @@ const ManualEditor: React.FC = () => {
                         value={header}
                         onChange={(e) => updateHeader(idx, e.target.value)}
                         className="w-full bg-transparent border-none focus:ring-2 focus:ring-indigo-500 rounded px-1 text-xs font-bold text-gray-600 uppercase tracking-widest outline-none transition-all"
-                        placeholder="Encabezado..."
+                        placeholder="Sin título..."
                       />
                       <button 
                         onClick={() => removeColumn(header)}
