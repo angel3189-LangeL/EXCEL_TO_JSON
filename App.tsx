@@ -1,15 +1,15 @@
 
 import React, { useState, useCallback } from 'react';
-import { Upload, FileJson, Download, Trash2, Zap, LayoutDashboard, Settings2, Info } from 'lucide-react';
+import { FileJson, Download, LayoutDashboard, Settings2, Edit3, Files } from 'lucide-react';
 import { ConvertedFile } from './types';
 import { parseExcelFile } from './services/excelParser';
-import { generateDataInsights } from './services/geminiService';
 import Dropzone from './components/Dropzone';
 import FileList from './components/FileList';
 import DataPreview from './components/DataPreview';
-import Sidebar from './components/Sidebar';
+import ManualEditor from './components/ManualEditor';
 
 const App: React.FC = () => {
+  const [view, setView] = useState<'batch' | 'manual'>('batch');
   const [files, setFiles] = useState<ConvertedFile[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -47,18 +47,6 @@ const App: React.FC = () => {
     if (selectedFileId === id) setSelectedFileId(null);
   };
 
-  const getInsights = async (id: string) => {
-    const file = files.find(f => f.id === id);
-    if (!file || file.insights) return;
-
-    try {
-      const insights = await generateDataInsights(file.data, file.name);
-      setFiles(prev => prev.map(f => f.id === id ? { ...f, insights } : f));
-    } catch (err) {
-      console.error("Error getting insights:", err);
-    }
-  };
-
   const downloadAll = async () => {
     // @ts-ignore
     const zip = new window.JSZip();
@@ -76,134 +64,166 @@ const App: React.FC = () => {
   const selectedFile = files.find(f => f.id === selectedFileId);
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Sidebar Navigation */}
-      <Sidebar />
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between z-10">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      {/* Header expanded to full width */}
+      <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between z-10 shadow-sm">
+        <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="bg-indigo-600 p-2 rounded-lg">
               <FileJson className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Excel2JSON Pro</h1>
-              <p className="text-sm text-gray-500">Conversión masiva inteligente</p>
+              <h1 className="text-xl font-bold text-gray-900 leading-none">DataFlow Studio</h1>
+              <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest font-bold">Convertidor Profesional</p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-4">
-            {files.length > 0 && (
-              <button 
-                onClick={downloadAll}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-              >
-                <Download className="w-4 h-4" />
-                <span>Descargar Todo ({files.length})</span>
-              </button>
-            )}
-            <div className="h-8 w-[1px] bg-gray-200 mx-2" />
-            <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-              <Settings2 className="w-5 h-5" />
+
+          <nav className="flex items-center bg-gray-100 p-1 rounded-xl">
+            <button
+              onClick={() => setView('batch')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === 'batch' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <Files className="w-4 h-4" />
+              Conversión Batch
             </button>
-          </div>
-        </header>
-
-        {/* Dynamic Body */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* File List Panel */}
-          <div className="w-80 border-r border-gray-200 bg-white overflow-y-auto flex flex-col">
-            <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-              <Dropzone onFilesAdded={handleFilesAdded} isProcessing={isProcessing} />
-            </div>
-            
-            <div className="flex-1">
-              <div className="p-4 flex items-center justify-between text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                <span>Archivos Cargados</span>
-                <span>{files.length}</span>
-              </div>
-              <FileList 
-                files={files} 
-                selectedId={selectedFileId} 
-                onSelect={setSelectedFileId} 
-                onRemove={removeFile} 
-              />
-            </div>
-          </div>
-
-          {/* Preview & Insights Panel */}
-          <div className="flex-1 bg-gray-50 overflow-y-auto p-8">
-            {selectedFile ? (
-              <div className="max-w-5xl mx-auto space-y-6">
-                <div className="flex items-center justify-between bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                      {selectedFile.name}
-                      <span className="text-xs font-normal bg-green-100 text-green-700 px-2 py-0.5 rounded-full uppercase">Completado</span>
-                    </h2>
-                    <p className="text-sm text-gray-500">{(selectedFile.size / 1024).toFixed(2)} KB • {selectedFile.data.length} filas detectadas</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => getInsights(selectedFile.id)}
-                      disabled={!!selectedFile.insights}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all border ${selectedFile.insights ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-                    >
-                      <Zap className={`w-4 h-4 ${selectedFile.insights ? 'fill-indigo-500' : ''}`} />
-                      <span>{selectedFile.insights ? 'Insights Generados' : 'Smart Insights'}</span>
-                    </button>
-                    <a 
-                      href={`data:text/json;charset=utf-8,${encodeURIComponent(selectedFile.jsonString)}`}
-                      download={`${selectedFile.name.split('.')[0]}.json`}
-                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>Exportar JSON</span>
-                    </a>
-                  </div>
-                </div>
-
-                {selectedFile.insights && (
-                  <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-xl text-white shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Zap className="w-5 h-5 fill-white/20" />
-                      <h3 className="font-bold">Análisis Inteligente por Gemini</h3>
-                    </div>
-                    <p className="text-indigo-50 leading-relaxed whitespace-pre-wrap">{selectedFile.insights}</p>
-                  </div>
-                )}
-
-                <DataPreview data={selectedFile.data} />
-                
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                    <h3 className="text-sm font-bold text-gray-700">Código JSON Generado</h3>
-                    <button 
-                      className="text-xs text-indigo-600 hover:underline font-medium"
-                      onClick={() => navigator.clipboard.writeText(selectedFile.jsonString)}
-                    >
-                      Copiar al Portapapeles
-                    </button>
-                  </div>
-                  <pre className="p-6 overflow-x-auto text-sm text-gray-800 bg-gray-900 text-green-400 font-mono max-h-[400px]">
-                    {selectedFile.jsonString}
-                  </pre>
-                </div>
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
-                <div className="bg-gray-200 p-6 rounded-full mb-4">
-                  <LayoutDashboard className="w-12 h-12 text-gray-400" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-400">Selecciona un archivo para previsualizar</h2>
-                <p className="text-gray-400 max-w-sm mt-2">Carga tus archivos Excel (.xlsx, .csv) en el panel izquierdo para comenzar la conversión.</p>
-              </div>
-            )}
-          </div>
+            <button
+              onClick={() => setView('manual')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${view === 'manual' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <Edit3 className="w-4 h-4" />
+              Editor Manual
+            </button>
+          </nav>
         </div>
-      </main>
+        
+        <div className="flex items-center gap-4">
+          {view === 'batch' && files.length > 0 && (
+            <button 
+              onClick={downloadAll}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-md active:scale-95"
+            >
+              <Download className="w-4 h-4" />
+              <span className="font-medium text-sm">Descargar Todo ({files.length})</span>
+            </button>
+          )}
+          <div className="h-8 w-[1px] bg-gray-200 mx-2" />
+          <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <Settings2 className="w-5 h-5" />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {view === 'batch' ? (
+          <>
+            {/* File List Panel */}
+            <div className="w-80 border-r border-gray-200 bg-white overflow-y-auto flex flex-col shadow-sm">
+              <div className="p-4 border-b border-gray-100 bg-gray-50/50">
+                <Dropzone onFilesAdded={handleFilesAdded} isProcessing={isProcessing} />
+              </div>
+              
+              <div className="flex-1">
+                <div className="p-4 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">
+                  <span>Archivos Cargados</span>
+                  <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">{files.length}</span>
+                </div>
+                <FileList 
+                  files={files} 
+                  selectedId={selectedFileId} 
+                  onSelect={setSelectedFileId} 
+                  onRemove={removeFile} 
+                />
+              </div>
+            </div>
+
+            {/* Preview Panel */}
+            <div className="flex-1 bg-gray-50 overflow-y-auto p-8">
+              {selectedFile ? (
+                <div className="max-w-5xl mx-auto space-y-6">
+                  <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                        {selectedFile.name}
+                        <span className="text-[10px] font-bold bg-green-100 text-green-700 px-2.5 py-1 rounded-full uppercase tracking-wider">Completado</span>
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {(selectedFile.size / 1024).toFixed(2)} KB • 
+                        <span className="ml-1 font-semibold text-gray-700">{selectedFile.data.length} filas detectadas</span>
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <a 
+                        href={`data:text/json;charset=utf-8,${encodeURIComponent(selectedFile.jsonString)}`}
+                        download={`${selectedFile.name.split('.')[0]}.json`}
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 border border-transparent text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-all shadow-sm active:scale-95"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Exportar JSON</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  <DataPreview data={selectedFile.data} />
+                  
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/80 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest">Código JSON Generado</h3>
+                      </div>
+                      <button 
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-bold transition-colors bg-indigo-50 px-3 py-1.5 rounded-lg"
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedFile.jsonString);
+                          alert('Copiado al portapapeles');
+                        }}
+                      >
+                        Copiar Código
+                      </button>
+                    </div>
+                    <div className="relative group">
+                      <pre className="p-8 overflow-x-auto text-sm text-green-400 bg-gray-900 font-mono leading-relaxed max-h-[500px] scrollbar-thin scrollbar-thumb-gray-700">
+                        {selectedFile.jsonString}
+                      </pre>
+                      <div className="absolute top-4 right-4 text-[10px] text-gray-500 font-mono bg-gray-800/50 px-2 py-1 rounded backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                        JSON FORMAT
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center">
+                  <div className="bg-white p-10 rounded-3xl border border-dashed border-gray-300 shadow-sm max-w-md w-full animate-in fade-in zoom-in duration-500">
+                    <div className="bg-gray-100 p-8 rounded-full mb-6 mx-auto w-fit">
+                      <LayoutDashboard className="w-16 h-16 text-gray-300" />
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">Centro de Conversión</h2>
+                    <p className="text-gray-500 mt-3 text-sm leading-relaxed px-4">
+                      Selecciona uno de los archivos cargados en el panel de la izquierda o arrastra nuevos archivos para comenzar el proceso de conversión.
+                    </p>
+                    <div className="mt-8 pt-8 border-t border-gray-100 flex justify-center gap-12">
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-indigo-600">Batch</div>
+                        <div className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Procesado</div>
+                      </div>
+                      <div className="w-[1px] bg-gray-200"></div>
+                      <div className="text-center">
+                        <div className="text-xl font-bold text-indigo-600">JSON</div>
+                        <div className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">Exportación</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 bg-gray-50 overflow-y-auto">
+            <ManualEditor />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

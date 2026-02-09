@@ -20,7 +20,8 @@ const Dropzone: React.FC<DropzoneProps> = ({ onFilesAdded, isProcessing }) => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const files = Array.from(e.dataTransfer.files).filter(f => 
+    // Explicitly cast to File[] to resolve 'unknown' type error when accessing properties like 'name'
+    const files = (Array.from(e.dataTransfer.files) as File[]).filter(f => 
       f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.csv')
     );
     if (files.length > 0) onFilesAdded(files);
